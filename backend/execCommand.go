@@ -25,3 +25,13 @@ func RunCommand(command string) {
 		fmt.Println(string(line))
 	}
 }
+
+func DummyRunCommand(command string) string {
+	cmd := exec.Command("fish", "-c", command)
+	stdout, err := cmd.Output()
+
+	if err != nil {
+		return "Failed to run command"
+	}
+	return string(stdout)
+}

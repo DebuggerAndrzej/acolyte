@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/DebuggerAndrzej/acolyte/backend"
+	"github.com/DebuggerAndrzej/acolyte/ui"
 )
 
 func main() {
-	backend.RunCommand("ping -c 3 google.pl")
+	ui.InitTui()
 }
