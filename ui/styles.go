@@ -5,16 +5,28 @@ import (
 )
 
 var (
-	modelStyle = lipgloss.NewStyle().
-			Width(15).
-			Height(5).
+	procNameStyle = lipgloss.NewStyle().
+			Width(30).
+			Height(1).
+			Bold(true).
 			Align(lipgloss.Center, lipgloss.Center).
-			BorderStyle(lipgloss.HiddenBorder())
+			BorderStyle(lipgloss.ThickBorder()).
+			BorderBottom(true)
+	modelStyle = lipgloss.NewStyle().
+			Width(30).
+			Height(3).
+			BorderStyle(lipgloss.RoundedBorder())
 	focusedModelStyle = lipgloss.NewStyle().
-				Width(15).
-				Height(5).
+				Width(30).
+				Height(3).
 				Align(lipgloss.Center, lipgloss.Center).
 				BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(lipgloss.Color("69"))
-	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69"))
+	mainTitleStyle = lipgloss.NewStyle().
+			Width(200).
+			Height(1).
+			Bold(true).
+			Align(lipgloss.Center, lipgloss.Center).
+			BorderStyle(lipgloss.ThickBorder()).
+			BorderBottom(true)
 )

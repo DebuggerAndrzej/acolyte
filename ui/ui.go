@@ -53,12 +53,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	var s string
-	if m.selectedComponent == 0 {
-		s += lipgloss.JoinHorizontal(lipgloss.Top, focusedModelStyle.Render(fmt.Sprintf("%4s", m.stopwatch.View())), modelStyle.Render(m.spinner.View()))
-	} else {
-		s += lipgloss.JoinHorizontal(lipgloss.Top, modelStyle.Render(fmt.Sprintf("%4s", m.stopwatch.View())), focusedModelStyle.Render(m.spinner.View()))
-	}
+	mainTitle := mainTitleStyle.Render("Acolyte dashboard")
+	card := generateProcCard("LS -LA", m)
+	card2 := generateProcCard("PING", m)
+	card3 := generateProcCard("CAT", m)
+	s += lipgloss.JoinVertical(lipgloss.Top, mainTitle, lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		card,
+		card2,
+		card3,
+	))
 	return s
+}
+func generateProcCard(title string, m Model) string {
+	return modelStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Top,
+			procNameStyle.Render(title),
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				fmt.Sprintf("Status: %s", m.spinner.View()),
+				"     ",
+				fmt.Sprintf("Time: %s", m.stopwatch.View()),
+			),
+		),
+	)
 }
 
 func InitTui() {
