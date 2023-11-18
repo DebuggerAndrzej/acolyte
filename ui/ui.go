@@ -5,49 +5,65 @@ import (
 	"log"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/stopwatch"
 	tea "github.com/charmbracelet/bubbletea"
+	lipgloss "github.com/charmbracelet/lipgloss"
 )
 
-type model int
-
+type Model struct {
+	stopwatch         stopwatch.Model
+	spinner           spinner.Model
+	selectedComponent int8
+}
 type tickMsg time.Time
 
-func (m model) Init() tea.Cmd {
-	return tea.Batch(tick(), tea.EnterAltScreen)
+func initModel() Model {
+	return Model{stopwatch: stopwatch.NewWithInterval(time.Second), spinner: spinner.New(), selectedComponent: 0}
 }
 
-func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := message.(type) {
+func (m Model) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, m.stopwatch.Init(), m.spinner.Tick)
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "esc", "ctrl+c":
+		case "q":
 			return m, tea.Quit
-		}
 
-	case tickMsg:
-		m--
-		if m <= 0 {
-			return m, tea.Quit
+		case "tab":
+			if m.selectedComponent == 0 {
+				m.selectedComponent += 1
+			} else {
+				m.selectedComponent -= 1
+			}
 		}
-		return m, tick()
+	case spinner.TickMsg:
+		m.spinner, cmd = m.spinner.Update(msg)
+		cmds = append(cmds, cmd)
 	}
-
-	return m, nil
+	m.stopwatch, cmd = m.stopwatch.Update(msg)
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
-	return fmt.Sprintf("\n\n     Hi. This program will exit in %d seconds...", m)
-}
-
-func tick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-
+func (m Model) View() string {
+	var s string
+	if m.selectedComponent == 0 {
+		s += lipgloss.JoinHorizontal(lipgloss.Top, focusedModelStyle.Render(fmt.Sprintf("%4s", m.stopwatch.View())), modelStyle.Render(m.spinner.View()))
+	} else {
+		s += lipgloss.JoinHorizontal(lipgloss.Top, modelStyle.Render(fmt.Sprintf("%4s", m.stopwatch.View())), focusedModelStyle.Render(m.spinner.View()))
+	}
+	return s
 }
 
 func InitTui() {
-	p := tea.NewProgram(model(5), tea.WithAltScreen())
+	model := initModel()
+	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
