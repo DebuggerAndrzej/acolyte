@@ -9,17 +9,32 @@ import (
 	"github.com/charmbracelet/bubbles/stopwatch"
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
+
+	"github.com/DebuggerAndrzej/acolyte/backend/entities"
 )
 
 type Model struct {
 	stopwatch         stopwatch.Model
 	spinner           spinner.Model
 	selectedComponent int8
+	procs             []entities.Proc
 }
 type tickMsg time.Time
 
 func initModel() Model {
-	return Model{stopwatch: stopwatch.NewWithInterval(time.Second), spinner: spinner.New(), selectedComponent: 0}
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7FBBB3"))
+	return Model{
+		stopwatch:         stopwatch.NewWithInterval(time.Second),
+		spinner:           s,
+		selectedComponent: 0,
+		procs: []entities.Proc{
+			{Name: "LS LA", Command: "ls -la"},
+			{Name: "GREP", Command: "grep -c 5 usefullgrep"},
+			{Name: "PING", Command: "ping -c 30 google.pl"},
+		},
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -36,11 +51,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "tab":
-			if m.selectedComponent == 0 {
-				m.selectedComponent += 1
-			} else {
-				m.selectedComponent -= 1
-			}
+			m.selectedComponent += 1
+		case "shift+tab":
+			m.selectedComponent -= 1
 		}
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -53,20 +66,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	var s string
+	var cards []string
 	mainTitle := mainTitleStyle.Render("Acolyte dashboard")
-	card := generateProcCard("LS -LA", m)
-	card2 := generateProcCard("PING", m)
-	card3 := generateProcCard("CAT", m)
-	s += lipgloss.JoinVertical(lipgloss.Top, mainTitle, lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		card,
-		card2,
-		card3,
-	))
+	for i, proc := range m.procs {
+		cards = append(cards, generateProcCard(proc.Name, m, i))
+	}
+	s += lipgloss.JoinVertical(lipgloss.Top, mainTitle, lipgloss.JoinHorizontal(lipgloss.Top, cards...))
 	return s
 }
-func generateProcCard(title string, m Model) string {
-	return modelStyle.Render(
+func generateProcCard(title string, m Model, index int) string {
+	cardStyleRenderer := modelStyle.Render
+	if index == int(m.selectedComponent) {
+		cardStyleRenderer = focusedModelStyle.Render
+	}
+	return cardStyleRenderer(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
 			procNameStyle.Render(title),
