@@ -17,50 +17,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keys.Quit):
-			if m.view == "dashboard" {
+	switch m.view {
+	case "dashboard":
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(msg, m.keys.Quit):
 				return m, tea.Quit
-			} else {
+			case key.Matches(msg, m.keys.Right):
+				m.selectedComponent += 1
+			case key.Matches(msg, m.keys.Left):
+				m.selectedComponent -= 1
+			case key.Matches(msg, m.keys.Down):
+				m.selectedComponent += m.cardsInRow
+			case key.Matches(msg, m.keys.Up):
+				m.selectedComponent -= m.cardsInRow
+			case key.Matches(msg, m.keys.Start):
+				return m, tea.Sequence(m.signalProcRunning, m.startProc)
+			case key.Matches(msg, m.keys.ShowOutput):
+				m.view = "command output"
+				m.commandOutput.SetContent(m.procs[m.selectedComponent].output)
+			}
+		case spinner.TickMsg:
+			m.spinner, cmd = m.spinner.Update(msg)
+			cmds = append(cmds, cmd)
+		case tea.WindowSizeMsg:
+			m.commandOutput.Width = msg.Width
+			m.commandOutput.Height = msg.Height - 6
+			m.cardsInRow = int(msg.Width / lipgloss.Width(modelStyle.Render()))
+		}
+		for i := 0; i < len(m.procs); i++ {
+			uiProc := &m.procs[i]
+			if uiProc.isRunning == true {
+				uiProc.stopwatch, cmd = uiProc.stopwatch.Update(msg)
+				cmds = append(cmds, cmd)
+			}
+		}
+		m.validateSelectedComponent()
+	case "command output":
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(msg, m.keys.Quit):
 				m.view = "dashboard"
 			}
-		case key.Matches(msg, m.keys.Right):
-			m.selectedComponent += 1
-		case key.Matches(msg, m.keys.Left):
-			m.selectedComponent -= 1
-		case key.Matches(msg, m.keys.Down):
-			m.selectedComponent += m.cardsInRow
-		case key.Matches(msg, m.keys.Up):
-			m.selectedComponent -= m.cardsInRow
-		case key.Matches(msg, m.keys.Start):
-			return m, tea.Sequence(m.signalProcRunning, m.startProc)
-		case key.Matches(msg, m.keys.ShowOutput):
-			m.view = "command output"
-			m.commandOutput.SetContent(m.procs[m.selectedComponent].output)
-		}
-	case spinner.TickMsg:
-		m.spinner, cmd = m.spinner.Update(msg)
-		cmds = append(cmds, cmd)
-	case tea.WindowSizeMsg:
-		m.commandOutput.Width = msg.Width
-		m.commandOutput.Height = msg.Height - 6
-		m.cardsInRow = int(msg.Width / lipgloss.Width(modelStyle.Render()))
-	}
-
-	for i := 0; i < len(m.procs); i++ {
-		uiProc := &m.procs[i]
-		if uiProc.isRunning == true {
-			uiProc.stopwatch, cmd = uiProc.stopwatch.Update(msg)
+		case spinner.TickMsg:
+			m.spinner, cmd = m.spinner.Update(msg)
 			cmds = append(cmds, cmd)
 		}
-	}
-	if m.view == "command output" {
 		m.commandOutput, cmd = m.commandOutput.Update(msg)
 		cmds = append(cmds, cmd)
 	}
-	m.validateSelectedComponent()
 	return m, tea.Batch(cmds...)
 }
 
