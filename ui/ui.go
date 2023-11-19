@@ -7,19 +7,30 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/stopwatch"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	lipgloss "github.com/charmbracelet/lipgloss"
 
+	"github.com/DebuggerAndrzej/acolyte/backend"
 	"github.com/DebuggerAndrzej/acolyte/backend/entities"
 )
+
+type UiProc struct {
+	proc entities.Proc
+	isRunning bool
+	timeRun string
+	output string
+}
 
 type Model struct {
 	stopwatch         stopwatch.Model
 	spinner           spinner.Model
 	selectedComponent int8
-	procs             []entities.Proc
+	procs             []UiProc
+	commandOutput viewport.Model
+	runningProcs []string
+	view string
 }
-type tickMsg time.Time
 
 func initModel() Model {
 	s := spinner.New()
@@ -29,11 +40,13 @@ func initModel() Model {
 		stopwatch:         stopwatch.NewWithInterval(time.Second),
 		spinner:           s,
 		selectedComponent: 0,
-		procs: []entities.Proc{
-			{Name: "LS LA", Command: "ls -la"},
-			{Name: "GREP", Command: "grep -c 5 usefullgrep"},
-			{Name: "PING", Command: "ping -c 30 google.pl"},
+		procs: []UiProc{
+			{proc: entities.Proc{Name: "LS LA", Command: "ls -la"}, isRunning: false, timeRun: "Hasn't been run yet", output: ""},
+			{proc: entities.Proc{Name: "GREP", Command: "grep -c 5 usefullGrep"}, isRunning: false, timeRun: "Hasn't been run yet", output: ""},
+			{proc: entities.Proc{Name: "PING", Command: "ping -c 20 google.pl"}, isRunning: false, timeRun: "Hasn't been run yet", output: ""},
 		},
+		commandOutput: viewport.New(200, 100),
+		view: "dashboard",
 	}
 }
 
@@ -54,6 +67,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectedComponent += 1
 		case "shift+tab":
 			m.selectedComponent -= 1
+		case "s":
+			return m, tea.Sequence(m.signalProcRunning, m.startProc)
 		}
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -68,30 +83,47 @@ func (m Model) View() string {
 	var s string
 	var cards []string
 	mainTitle := mainTitleStyle.Render("Acolyte dashboard")
-	for i, proc := range m.procs {
-		cards = append(cards, generateProcCard(proc.Name, m, i))
+	for i, uiProc := range m.procs {
+		cards = append(cards, generateProcCard(uiProc, m, i))
 	}
 	s += lipgloss.JoinVertical(lipgloss.Top, mainTitle, lipgloss.JoinHorizontal(lipgloss.Top, cards...))
 	return s
 }
-func generateProcCard(title string, m Model, index int) string {
+func generateProcCard(uiProc UiProc, m Model, index int) string {
 	cardStyleRenderer := modelStyle.Render
+	status := "  "
 	if index == int(m.selectedComponent) {
 		cardStyleRenderer = focusedModelStyle.Render
+	}
+	if uiProc.isRunning == true {
+		status = m.spinner.View()
 	}
 	return cardStyleRenderer(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
-			procNameStyle.Render(title),
+			procNameStyle.Render(uiProc.proc.Name),
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
-				fmt.Sprintf("Status: %s", m.spinner.View()),
+				fmt.Sprintf("Status: %s", status),
 				"     ",
-				fmt.Sprintf("Time: %s", m.stopwatch.View()),
+				fmt.Sprintf("Time: %s", "0s"),
 			),
 		),
 	)
 }
+
+func (m *Model) signalProcRunning() tea.Msg {
+	m.procs[m.selectedComponent].isRunning = true
+	return nil
+
+}
+
+func (m *Model) startProc() tea.Msg {
+	m.procs[m.selectedComponent].output  =backend.DummyRunCommand(m.procs[m.selectedComponent].proc.Command)
+	m.procs[m.selectedComponent].isRunning = false
+	return nil
+}
+
 
 func InitTui() {
 	model := initModel()
